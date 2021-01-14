@@ -28,6 +28,7 @@ var (
 // it supports "default" (""), "size-{size}", "rabin", "rabin-{blocksize}",
 // "rabin-{min}-{avg}-{max}" and "buzhash".
 func FromString(r io.Reader, chunker string) (Splitter, error) {
+	fmt.Println(chunker)
 	switch {
 	case chunker == "" || chunker == "default":
 		return DefaultSplitter(r), nil
@@ -59,6 +60,7 @@ func FromString(r io.Reader, chunker string) (Splitter, error) {
 
 func parseRamString(r io.Reader, chunker string) (Splitter, error) {
 	parts := strings.Split(chunker, "-")
+	fmt.Println("parts: ",parts[1],parts[2],parts[3])
 	minSize,err:=strconv.Atoi(parts[1])
 	if err != nil {
 		return nil, err
