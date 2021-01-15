@@ -1,7 +1,6 @@
 package chunk
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -9,108 +8,105 @@ import (
 
 type Ram struct {
 	reader  io.Reader
-	minSize int // also the size of fixed window
-	maxSize int
-	byteNum int
+	minSize uint64 // also the size of fixed window
+	maxSize uint64
+	byteNum uint64
+
+	curIndex uint64 // start point of current block
 
 	buf      []byte // buffer
-	byteNumBuf []byte // save the end bytes of last buf
-	curIndex int    // the start point in cur chunk
-	endIndex int
+	bufStart uint64
+	bufEnd  uint64
+	value uint64
 }
 
-func NewRam(r io.Reader, minSize int, maxSize int, byteNum int) *Ram {
+func NewRam(r io.Reader, minSize uint64, maxSize uint64, byteNum uint64) *Ram {
 	return &Ram{
 		reader:   r,
 		minSize:  minSize, //default 16384=16k
 		maxSize:  maxSize, //default 1048576=1024k=64*min
 		byteNum:  byteNum, //default 8
-		buf:      nil,
-		byteNumBuf: make([]byte, byteNum-1),
 		curIndex: 0,
-		endIndex: 0, // if buf is full , endIndex is minSize
+		buf:      make([]byte, minSize),
+		bufStart: 0,
+		bufEnd:   0,
+		value: 0,
 	}
 }
 
 // NextBytes get a maximum in the fixed windows, and move to the next byte where the value is larger than the maximum.
 func (ram *Ram) NextBytes() ([]byte, error) {
-	if ram.endIndex > 0 && ram.endIndex < ram.minSize {
-		var chunk = make([]byte, ram.endIndex-ram.curIndex)
-		copy(chunk, ram.buf[ram.curIndex:ram.endIndex])
-		return chunk, nil
-	}
-	// endIndex == minSize, buf is full
-	chunk := make([]byte, 0)
-	index := 0
-	if ram.buf == nil { // first chunk
-		ram.buf = make([]byte, ram.minSize)
-		n, err := io.ReadFull(ram.reader, ram.buf)
-		if err == io.ErrUnexpectedEOF { // return the bytes directly
-			small := make([]byte, n)
-			copy(small, ram.buf)
-			return small, io.ErrUnexpectedEOF
+	chunk:=make([]byte,0)
+	var maximum uint64 = 0
+	i:=ram.curIndex
+	for {
+		curByte, value, err := ram.getByteAndValue(i)
+		if err != nil {
+			fmt.Println("get chunk, len:",err,len(chunk))
+			if len(chunk) == 0 {
+				return nil,err
+			}
+			break
 		}
-		chunk = ram.buf // read a buf
-	} else { // buf not nil
-		chunk = append(chunk, ram.buf[ram.curIndex:ram.endIndex]...)
-		index += ram.endIndex - ram.curIndex
-		ram.readNewBuf()
-		var need = ram.minSize - len(chunk)
-		if ram.endIndex <= need {
-			chunk = append(chunk, ram.buf[ram.curIndex:ram.endIndex]...)
-			return chunk, nil
+		chunk=append(chunk,curByte)
+		if i-ram.curIndex == ram.maxSize { //reach the max size
+			break
 		}
-		chunk = append(chunk, ram.buf[0:need]...)
-		ram.curIndex += need
-		index += need
-	}
-	//now chunk is the fixed window, index is minSize
-	var maximum uint32 = 0
-	for i := ram.byteNum; i <= ram.minSize; i++ {
-		var value = binary.BigEndian.Uint32(chunk[(i - ram.byteNum):i])
-		if value > maximum {
+		if value >= maximum {
+			if i-ram.curIndex > ram.minSize {
+				ram.curIndex = i+1
+				break
+			}
 			maximum = value
 		}
+		i++
 	}
-	fmt.Println("maximum: ", maximum)
+	fmt.Println("break, bufStart:",ram.bufStart, "   bufEnd:",ram.bufEnd, "   i:",i)
+	return chunk, nil
+}
 
-	// move forward to get a value larger than maximum
-	for ; index < ram.maxSize; index++ { // the count of operation
-		tmpBytes, _ := ram.getByteNum()                  // get the next byte window
-		if binary.BigEndian.Uint32(tmpBytes) > maximum { // index is the cut point
-			
+var ErrFileEnd = errors.New("file end============")
+
+func (ram *Ram) getByteAndValue(i uint64) (byte, uint64,error){
+	if i==0 {
+		fmt.Println("0===.bufStart:",ram.bufStart, "   bufEnd:",ram.bufEnd, "   i:",i)
+		n,_ := io.ReadFull(ram.reader, ram.buf)
+		if n == 0 {
+			return 0, 0, io.EOF
 		}
+		ram.bufEnd += uint64(n)
+		curByte := ram.buf[0]
+		ram.value = (ram.value<<4) & uint64(curByte)
+		fmt.Println("01===.bufStart:",ram.bufStart, "   bufEnd:",ram.bufEnd, "   i:",i)
+		return curByte, ram.value, nil
 	}
+	if i < ram.bufEnd {
+		//if i%50==0 {
+		//	fmt.Println("22.bufStart:", ram.bufStart, "   bufEnd:", ram.bufEnd, "   i:", i)
+		//}
+		curByte := ram.buf[i-ram.bufStart]
+		ram.value = (ram.value<<4) & uint64(curByte)
+		return curByte, ram.value, nil
+	} else {
+		fmt.Println("1------.bufStart:",ram.bufStart, "   bufEnd:",ram.bufEnd, "   i:",i)
+		//buftmp := ram.buf[uint64(len(ram.buf))-ram.byteNum:]
+		buftmp := ram.buf[uint64(len(ram.buf))-ram.byteNum:]
+		n,_ := io.ReadFull(ram.reader, ram.buf)
+		fmt.Println("read full: ",n)
+		if n == 0 {
+			ram.curIndex = ram.bufEnd
+			return 0, 0, io.EOF
+		}
+		ram.bufStart += uint64(len(ram.buf))-ram.byteNum
+		ram.bufEnd += uint64(n)
 
-	return nil, nil
-}
+		fmt.Println("2------.bufStart:",ram.bufStart, "   bufEnd:",ram.bufEnd, "   i:",i)
+		ram.buf = append(buftmp,ram.buf...)
 
-var ErrBufOver = errors.New("buf full")
-var ErrBufEnd = errors.New("buf end")
-
-func (ram *Ram) getByteNum() ([]byte, error) {
-	var bytes = make([]byte,0)
-	if ram.curIndex < ram.byteNum-1 { // need get the byteNumBuf
-		bytes= append(bytes, ram.byteNumBuf[ram.curIndex:]...)
-		bytes=append(bytes,ram.buf[0:ram.curIndex+1]...)
-		ram.curIndex++
-		return bytes, nil
+		curByte := ram.buf[i-ram.bufStart]
+		ram.value = (ram.value<<4) & uint64(curByte)
+		return curByte, ram.value, nil
 	}
-	if ram.curIndex == ram.minSize {
-		ram.readNewBuf()
-		ram.curIndex+=ram.byteNum
-		return ram.buf[0:ram.curIndex], ErrBufOver
-	}
-	if ram.curIndex == ram.endIndex { // at this line, end must be less than minSize
-		return ram.buf[ram.endIndex-ram.byteNum:ram.endIndex], ErrBufEnd
-	}
-}
-
-func (ram *Ram) readNewBuf() {
-	copy(ram.byteNumBuf, ram.buf[len(ram.buf)-ram.byteNum+1:])
-	n, _ := io.ReadFull(ram.reader, ram.buf)
-	ram.endIndex = n
-	ram.curIndex = 0
 }
 
 func (ram *Ram) Reader() io.Reader {

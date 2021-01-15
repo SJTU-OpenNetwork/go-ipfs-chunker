@@ -73,7 +73,7 @@ func parseRamString(r io.Reader, chunker string) (Splitter, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewRam(r,minSize,maxSize,byteNum), nil
+	return NewRam(r,uint64(minSize),uint64(maxSize),uint64(byteNum)), nil
 }
 
 func parseRabinString(r io.Reader, chunker string) (Splitter, error) {
