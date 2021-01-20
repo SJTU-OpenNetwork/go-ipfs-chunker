@@ -1,13 +1,12 @@
 package chunk
 
 import (
-	"errors"
 	"fmt"
 	"io"
 )
 
-type Ram struct {
-	reader  io.Reader
+type Hram struct {
+	reader io.Reader
 	minSize uint64 // also the size of fixed window
 	maxSize uint64
 	byteNum uint64
@@ -19,54 +18,11 @@ type Ram struct {
 	value uint64
 }
 
-func NewRam(r io.Reader, minSize uint64, maxSize uint64, byteNum uint64) *Ram {
-	return &Ram{
-		reader:   r,
-		minSize:  minSize, //default 16384=16k
-		maxSize:  maxSize, //default 1048576=1024k=64*min
-		byteNum:  byteNum, //default 8
-		curIndex: 0,
-		buf:      make([]byte, minSize),
-		bufStart: 0,
-		bufEnd:   0,
-		value: 0,
-	}
+func (ram *Hram) NextBytes() ([]byte, error){
+
 }
 
-// NextBytes get a maximum in the fixed windows, and move to the next byte where the value is larger than the maximum.
-func (ram *Ram) NextBytes() ([]byte, error) {
-	chunk:=make([]byte,0)
-	var maximum uint64 = 0
-	i:=ram.curIndex
-	for {
-		curByte, value, err := ram.getByteAndValue(i)
-		if err != nil {
-			fmt.Println("get chunk, len:",err,len(chunk))
-			if len(chunk) == 0 {
-				return nil,err
-			}
-			break
-		}
-		chunk=append(chunk,curByte)
-		if i-ram.curIndex == ram.maxSize { //reach the max size
-			break
-		}
-		if value >= maximum {
-			if i-ram.curIndex > ram.minSize {
-				ram.curIndex = i+1
-				break
-			}
-			maximum = value
-		}
-		i++
-	}
-	fmt.Println("break, bufStart:",ram.bufStart, "   bufEnd:",ram.bufEnd, "   i:",i)
-	return chunk, nil
-}
-
-var ErrFileEnd = errors.New("file end============")
-
-func (ram *Ram) getByteAndValue(i uint64) (byte, uint64,error){
+func (ram *Hram) getByteAndValue(i uint64) (byte, uint64,error){
 	if i==0 {
 		fmt.Println("0===.bufStart:",ram.bufStart, "   bufEnd:",ram.bufEnd, "   i:",i)
 		n,_ := io.ReadFull(ram.reader, ram.buf)
@@ -104,6 +60,6 @@ func (ram *Ram) getByteAndValue(i uint64) (byte, uint64,error){
 	}
 }
 
-func (ram *Ram) Reader() io.Reader {
+func (ram *Hram) Reader() io.Reader {
 	return ram.reader
 }
