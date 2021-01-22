@@ -1,13 +1,16 @@
 package chunk
 
 import (
-	"errors"
+	"crypto/md5"
+	"encoding/binary"
 	"fmt"
 	"io"
 )
 
-type Ram struct {
-	reader  io.Reader
+const MaxUint32 = uint64(^uint32(0))
+
+type Hram struct {
+	reader io.Reader
 	minSize uint64 // also the size of fixed window
 	maxSize uint64
 	byteNum uint32
@@ -17,10 +20,12 @@ type Ram struct {
 	bufStart uint64
 	bufEnd  uint64
 	value uint32
+
+	s uint32
 }
 
-func NewRam(r io.Reader, minSize uint64, maxSize uint64, byteNum uint32) *Ram {
-	return &Ram{
+func NewHram(r io.Reader, minSize uint64, maxSize uint64, byteNum uint32) *Hram {
+	return &Hram{
 		reader:   r,
 		minSize:  minSize, //default 16384=16k
 		maxSize:  maxSize, //default 1048576=1024k=64*min
@@ -30,11 +35,11 @@ func NewRam(r io.Reader, minSize uint64, maxSize uint64, byteNum uint32) *Ram {
 		bufStart: 0,
 		bufEnd:   0,
 		value: 0,
+		s: 1,
 	}
 }
 
-// NextBytes get a maximum in the fixed windows, and move to the next byte where the value is larger than the maximum.
-func (ram *Ram) NextBytes() ([]byte, error) {
+func (ram *Hram) NextBytes() ([]byte, error) {
 	chunk:=make([]byte,0)
 	var maximum uint32 = 0
 	i:=ram.curIndex
@@ -53,20 +58,21 @@ func (ram *Ram) NextBytes() ([]byte, error) {
 		}
 		if value >= maximum {
 			if i-ram.curIndex > ram.minSize {
-				break
+				if ram.getHashMod() < value {
+					break
+				}
 			}
 			maximum = value
 		}
 		i++
 	}
-	ram.curIndex = i+1
+	ram.curIndex = i + 1
 	fmt.Println("break, bufStart:",ram.bufStart, "   bufEnd:",ram.bufEnd, "   cut point:",i,"   maximum:",maximum,"   value:",ram.value,"   len:",len(chunk))
 	return chunk, nil
 }
 
-var ErrFileEnd = errors.New("file end============")
 
-func (ram *Ram) getByteAndValue(i uint64) (byte, uint32,error){
+func (ram *Hram) getByteAndValue(i uint64) (byte, uint32,error){
 	if i==0 {
 		//fmt.Println("0===.bufStart:",ram.bufStart, "   bufEnd:",ram.bufEnd, "   i:",i)
 		n,_ := io.ReadFull(ram.reader, ram.buf)
@@ -94,7 +100,7 @@ func (ram *Ram) getByteAndValue(i uint64) (byte, uint32,error){
 		ram.bufStart += uint64(len(ram.buf))-uint64(ram.byteNum)
 		ram.bufEnd += uint64(n)
 
-		//fmt.Println("2------.bufStart:",ram.bufStart, "   bufEnd:",ram.bufEnd, "   i:",i)
+		//fmt.Println("2hram.bufStart:",ram.bufStart, "   bufEnd:",ram.bufEnd, "   i:",i)
 		ram.buf = append(buftmp,ram.buf...)
 
 		curByte := ram.buf[i-ram.bufStart]
@@ -103,6 +109,15 @@ func (ram *Ram) getByteAndValue(i uint64) (byte, uint32,error){
 	}
 }
 
-func (ram *Ram) Reader() io.Reader {
+
+func (ram *Hram) getHashMod() uint32 {
+	var tmp = make([]byte,4)
+	binary.BigEndian.PutUint32(tmp,ram.value)
+	var hashByte = md5.Sum(tmp)
+	var res = binary.BigEndian.Uint64(hashByte[:]) % MaxUint32
+	return ram.s * uint32(res)
+}
+
+func (ram *Hram) Reader() io.Reader {
 	return ram.reader
 }
