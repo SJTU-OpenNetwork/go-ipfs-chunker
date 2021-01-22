@@ -87,20 +87,13 @@ func (ram *Hram) getByteAndValue(i uint64) (byte, uint32,error){
 		ram.value = (ram.value<<8) | uint32(curByte)
 		return curByte, ram.value, nil
 	} else {
-		//fmt.Println("1------.bufStart:",ram.bufStart, "   bufEnd:",ram.bufEnd, "   i:",i)
-		//buftmp := ram.buf[uint64(len(ram.buf))-ram.byteNum:]
-		buftmp := ram.buf[uint64(len(ram.buf))-uint64(ram.byteNum):]
+		ram.bufStart += uint64(len(ram.buf))
 		n,_ := io.ReadFull(ram.reader, ram.buf)
-		//fmt.Println("read full: ",n)
 		if n == 0 {
 			ram.curIndex = ram.bufEnd
 			return 0, 0, io.EOF
 		}
-		ram.bufStart += uint64(len(ram.buf))-uint64(ram.byteNum)
 		ram.bufEnd += uint64(n)
-
-		//fmt.Println("2hram.bufStart:",ram.bufStart, "   bufEnd:",ram.bufEnd, "   i:",i)
-		ram.buf = append(buftmp,ram.buf...)
 
 		curByte := ram.buf[i-ram.bufStart]
 		ram.value = (ram.value<<8) | uint32(curByte)

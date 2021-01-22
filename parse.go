@@ -33,6 +33,15 @@ func FromString(r io.Reader, chunker string) (Splitter, error) {
 	case chunker == "" || chunker == "default":
 		return DefaultSplitter(r), nil
 
+	case strings.HasPrefix(chunker,"honrabin"):
+		return parseHonRabin(r,chunker)
+
+	case strings.HasPrefix(chunker, "hram"):
+		return parseHramString(r,chunker)
+
+	case strings.HasPrefix(chunker,"ram"):
+		return parseRamString(r,chunker)
+
 	case strings.HasPrefix(chunker, "size-"):
 		sizeStr := strings.Split(chunker, "-")[1]
 		size, err := strconv.Atoi(sizeStr)
@@ -48,17 +57,26 @@ func FromString(r io.Reader, chunker string) (Splitter, error) {
 	case strings.HasPrefix(chunker, "rabin"):
 		return parseRabinString(r, chunker)
 
-	case strings.HasPrefix(chunker, "hram"):
-		return parseHramString(r,chunker)
-
-	case strings.HasPrefix(chunker,"ram"):
-		return parseRamString(r,chunker)
 	case chunker == "buzhash":
 		return NewBuzhash(r), nil
 
 	default:
 		return nil, fmt.Errorf("unrecognized chunker option: %s", chunker)
 	}
+}
+
+func parseHonRabin(r io.Reader, chunker string)(Splitter, error) {
+	parts := strings.Split(chunker, "-")
+	fmt.Println("honrabin: ",parts[1],parts[2])
+	minSize,err:=strconv.Atoi(parts[1])
+	if err != nil {
+		return nil, err
+	}
+	maxSize,err:=strconv.Atoi(parts[2])
+	if err != nil {
+		return nil, err
+	}
+	return NewHonRabin(r,uint64(minSize),uint64(maxSize),16), nil
 }
 
 func parseHramString(r io.Reader, chunker string) (Splitter, error) {

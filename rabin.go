@@ -29,7 +29,7 @@ func NewRabin(r io.Reader, avgBlkSize uint64) *Rabin {
 // NewRabinMinMax returns a new Rabin splitter which uses
 // the given min, average and max block sizes.
 func NewRabinMinMax(r io.Reader, min, avg, max uint64) *Rabin {
-	h := fnv.New32a()
+	h := fnv.New32a() // used when compare strings
 	ch := chunker.New(r, IpfsRabinPoly, h, avg, min, max)
 
 	return &Rabin{
