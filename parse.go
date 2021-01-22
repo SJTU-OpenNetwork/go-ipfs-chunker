@@ -63,7 +63,7 @@ func FromString(r io.Reader, chunker string) (Splitter, error) {
 
 func parseHramString(r io.Reader, chunker string) (Splitter, error) {
 	parts := strings.Split(chunker, "-")
-	fmt.Println("parts: ",parts[1],parts[2],parts[3])
+	fmt.Println("hram: ",parts[1],parts[2],parts[3])
 	minSize,err:=strconv.Atoi(parts[1])
 	if err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func parseHramString(r io.Reader, chunker string) (Splitter, error) {
 
 func parseRamString(r io.Reader, chunker string) (Splitter, error) {
 	parts := strings.Split(chunker, "-")
-	fmt.Println("parts: ",parts[1],parts[2],parts[3])
+	fmt.Println("ram: ",parts[1],parts[2],parts[3])
 	minSize,err:=strconv.Atoi(parts[1])
 	if err != nil {
 		return nil, err

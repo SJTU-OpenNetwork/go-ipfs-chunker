@@ -3,7 +3,6 @@ package chunk
 import (
 	"crypto/md5"
 	"encoding/binary"
-	"fmt"
 	"io"
 )
 
@@ -67,7 +66,7 @@ func (ram *Hram) NextBytes() ([]byte, error) {
 		i++
 	}
 	ram.curIndex = i + 1
-	fmt.Println("break, bufStart:",ram.bufStart, "   bufEnd:",ram.bufEnd, "   cut point:",i,"   maximum:",maximum,"   value:",ram.value,"   len:",len(chunk))
+	//fmt.Println("break, bufStart:",ram.bufStart, "   bufEnd:",ram.bufEnd, "   cut point:",i,"   maximum:",maximum,"   value:",ram.value,"   len:",len(chunk))
 	return chunk, nil
 }
 

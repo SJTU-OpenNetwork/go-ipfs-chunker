@@ -1,8 +1,6 @@
 package chunk
 
 import (
-	"errors"
-	"fmt"
 	"io"
 )
 
@@ -60,11 +58,11 @@ func (ram *Ram) NextBytes() ([]byte, error) {
 		i++
 	}
 	ram.curIndex = i+1
-	fmt.Println("break, bufStart:",ram.bufStart, "   bufEnd:",ram.bufEnd, "   cut point:",i,"   maximum:",maximum,"   value:",ram.value,"   len:",len(chunk))
+	//fmt.Println("break, bufStart:",ram.bufStart, "   bufEnd:",ram.bufEnd, "   cut point:",i,"   maximum:",maximum,"   value:",ram.value,"   len:",len(chunk))
 	return chunk, nil
 }
 
-var ErrFileEnd = errors.New("file end============")
+//var ErrFileEnd = errors.New("file end============")
 
 func (ram *Ram) getByteAndValue(i uint64) (byte, uint32,error){
 	if i==0 {
