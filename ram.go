@@ -6,8 +6,8 @@ import (
 
 type Ram struct {
 	reader  io.Reader
-	minSize uint64 // also the size of fixed window
-	maxSize uint64
+	minSize int // also the size of fixed window
+	maxSize int
 	byteNum uint32
 
 	curIndex uint64 // start point of current block
@@ -17,53 +17,55 @@ type Ram struct {
 	bufEnd  uint64
 
 	value uint32
-	lastBytes []byte
+
+	chunkarr []byte
 }
 
-func NewRam(r io.Reader, minSize uint64, maxSize uint64, byteNum uint32) *Ram {
+func NewRam(r io.Reader, minSize int, maxSize int, byteNum uint32) *Ram {
 	return &Ram{
 		reader:   r,
 		minSize:  minSize, //default 16384=16k
 		maxSize:  maxSize, //default 1048576=1024k=64*min
 		byteNum:  byteNum, //default 8
 		curIndex: 0,
-		buf:      make([]byte, minSize*1024),
+		buf:      make([]byte, minSize),
 		bufStart: 0,
 		bufEnd:   0,
 		value: 0,
-		lastBytes: make([]byte,byteNum-1),
+		chunkarr: make([]byte,maxSize),
 	}
 }
 
 // NextBytes get a maximum in the fixed windows, and move to the next byte where the value is larger than the maximum.
 func (ram *Ram) NextBytes() ([]byte, error) {
-	chunk:=make([]byte,0)
 	var maximum uint32 = 0
 	i:=ram.curIndex
-	for {
+	maxsizeMinueOne := ram.maxSize-1
+
+	for chunkSize:=0;;chunkSize++ {
 		curByte, value, err := ram.getByteAndValue(i)
 		if err != nil {
-			//fmt.Println("get chunk, len:",err,len(chunk))
-			if len(chunk) == 0 {
+			if chunkSize == 0 {
 				return nil,err
 			}
 			break
 		}
-		chunk=append(chunk,curByte)
-		if i-ram.curIndex == ram.maxSize-1 { //reach the max size
+		ram.chunkarr[chunkSize]=curByte
+		if chunkSize == maxsizeMinueOne { //reach the max size
 			break
 		}
 		if value >= maximum {
-			if i-ram.curIndex > ram.minSize {
+			if chunkSize > ram.minSize {
 				break
 			}
 			maximum = value
 		}
 		i++
 	}
+	var x =ram.curIndex
 	ram.curIndex = i+1
 	//fmt.Println("break, bufStart:",ram.bufStart, "   bufEnd:",ram.bufEnd, "   cut point:",i,"   maximum:",maximum,"   value:",ram.value,"   len:",len(chunk))
-	return chunk, nil
+	return ram.chunkarr[:(i+1-x)], nil
 }
 
 //var ErrFileEnd = errors.New("file end============")
