@@ -85,7 +85,7 @@ func parseRam2String(r io.Reader, chunker string) (Splitter, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewRam2(r,minSize,maxSize,byteNum), nil
+	return NewRam2(r,uint64(minSize),uint64(maxSize),uint64(byteNum)), nil
 }
 
 func parseHonRabin(r io.Reader, chunker string)(Splitter, error) {
@@ -117,7 +117,7 @@ func parseHramString(r io.Reader, chunker string) (Splitter, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewHram(r,uint64(minSize),uint64(maxSize),uint32(byteNum)), nil
+	return NewHram(r,minSize,maxSize,uint32(byteNum)), nil
 }
 
 func parseRamString(r io.Reader, chunker string) (Splitter, error) {

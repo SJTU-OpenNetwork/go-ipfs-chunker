@@ -3,111 +3,92 @@ package chunk
 import (
 	"crypto/md5"
 	"encoding/binary"
+	"fmt"
 	"io"
 )
 
-const MaxUint32 = uint64(^uint32(0))
-
 type Hram struct {
 	reader io.Reader
-	minSize uint64 // also the size of fixed window
-	maxSize uint64
+	minSize int // also the size of fixed window
+	maxSize int
 	byteNum uint32
 
+	curIndex int // start point of current block
+
 	buf      []byte // buffer
-	curIndex uint64 // start point of current block
-	bufStart uint64
-	bufEnd  uint64
+	bufStart int
+	bufEnd  int
+
 	value uint32
 
-	s uint32
+	observe uint64
+	observeArr []byte
+
+	chunkarr []byte
 }
 
-func NewHram(r io.Reader, minSize uint64, maxSize uint64, byteNum uint32) *Hram {
+func NewHram(r io.Reader, minSize int, maxSize int, byteNum uint32) *Hram {
 	return &Hram{
 		reader:   r,
 		minSize:  minSize, //default 16384=16k
 		maxSize:  maxSize, //default 1048576=1024k=64*min
 		byteNum:  byteNum, //default 8
 		curIndex: 0,
-		buf:      make([]byte, minSize),
+		buf:      make([]byte, minSize*20),
 		bufStart: 0,
 		bufEnd:   0,
 		value: 0,
-		s: 1,
+		chunkarr: make([]byte,maxSize),
+		observeArr: make([]byte,8),
 	}
 }
 
 func (ram *Hram) NextBytes() ([]byte, error) {
-	chunk:=make([]byte,0)
 	var maximum uint32 = 0
+	maxsizeMinueOne := ram.maxSize-1
 	i:=ram.curIndex
+	curByteIndex:=i-ram.bufStart
+	chunkSize:=0
 	for {
-		curByte, value, err := ram.getByteAndValue(i)
-		if err != nil {
-			//fmt.Println("get chunk, len:",err,len(chunk))
-			if len(chunk) == 0 {
-				return nil,err
+		if i>=ram.bufEnd {
+			n,_ := io.ReadFull(ram.reader, ram.buf)
+			if n == 0 {
+				if chunkSize == 0 {
+					ram.curIndex = ram.bufEnd
+					return nil,io.EOF
+				}
+				break
 			}
+			if i!=0 {
+				ram.bufStart += len(ram.buf)
+			}
+			ram.bufEnd += n
+			curByteIndex=0
+		}
+		ram.chunkarr[chunkSize]=ram.buf[curByteIndex]
+		ram.value = (ram.value<<8) | uint32(ram.chunkarr[chunkSize])
+		if chunkSize == maxsizeMinueOne { //reach the max size
 			break
 		}
-		chunk=append(chunk,curByte)
-		if i-ram.curIndex == ram.maxSize-1 { //reach the max size
-			break
-		}
-		if value >= maximum {
-			if i-ram.curIndex > ram.minSize {
-				if ram.getHashMod() < value {
+		if ram.value >= maximum {
+			if chunkSize > ram.minSize {
+				ram.observe = (ram.observe<<8) | uint64(ram.chunkarr[chunkSize])
+				binary.BigEndian.PutUint64(ram.observeArr,ram.observe)
+				var hashByte = md5.Sum(ram.observeArr)
+				if 2*binary.BigEndian.Uint32(hashByte[:])< ram.value {
+					fmt.Printf("get an cut point, hashvale:%d,   value:%d\n",2*binary.BigEndian.Uint32(hashByte[:]),ram.value)
 					break
 				}
 			}
-			maximum = value
+			maximum = ram.value
 		}
 		i++
+		chunkSize++
+		curByteIndex++
 	}
-	ram.curIndex = i + 1
-	//fmt.Println("break, bufStart:",ram.bufStart, "   bufEnd:",ram.bufEnd, "   cut point:",i,"   maximum:",maximum,"   value:",ram.value,"   len:",len(chunk))
-	return chunk, nil
-}
-
-
-func (ram *Hram) getByteAndValue(i uint64) (byte, uint32,error){
-	if i==0 {
-		//fmt.Println("0===.bufStart:",ram.bufStart, "   bufEnd:",ram.bufEnd, "   i:",i)
-		n,_ := io.ReadFull(ram.reader, ram.buf)
-		if n == 0 {
-			return 0, 0, io.EOF
-		}
-		ram.bufEnd += uint64(n)
-		ram.value = uint32(ram.buf[0])
-		return ram.buf[0], ram.value, nil
-	}
-	if i < ram.bufEnd {
-		curByte := ram.buf[i-ram.bufStart]
-		ram.value = (ram.value<<8) | uint32(curByte)
-		return curByte, ram.value, nil
-	} else {
-		ram.bufStart += uint64(len(ram.buf))
-		n,_ := io.ReadFull(ram.reader, ram.buf)
-		if n == 0 {
-			ram.curIndex = ram.bufEnd
-			return 0, 0, io.EOF
-		}
-		ram.bufEnd += uint64(n)
-
-		curByte := ram.buf[i-ram.bufStart]
-		ram.value = (ram.value<<8) | uint32(curByte)
-		return curByte, ram.value, nil
-	}
-}
-
-
-func (ram *Hram) getHashMod() uint32 {
-	var tmp = make([]byte,4)
-	binary.BigEndian.PutUint32(tmp,ram.value)
-	var hashByte = md5.Sum(tmp)
-	var res = binary.BigEndian.Uint64(hashByte[:]) % MaxUint32
-	return ram.s * uint32(res)
+	var x =ram.curIndex
+	ram.curIndex = i+1
+	return ram.chunkarr[:(i+1-x)], nil
 }
 
 func (ram *Hram) Reader() io.Reader {
