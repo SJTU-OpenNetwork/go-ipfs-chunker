@@ -73,16 +73,16 @@ func (ram *Hram) NextBytes() ([]byte, error) {
 		if chunkSize == maxsizeMinueOne { //reach the max size
 			break
 		}
-		if ram.value >= (maximum/10*8) {
+		if ram.value >= (maximum/100*95) {
 			if chunkSize > ram.minSize {
 				ram.observe = (ram.observe<<8) | uint64(ram.chunkarr[chunkSize])
 				binary.BigEndian.PutUint64(ram.observeArr,ram.observe)
 				var hashByte = md5.Sum(ram.observeArr)
-				if binary.BigEndian.Uint64(hashByte[:]) % 10 == uint64(0) {
+				if binary.BigEndian.Uint64(hashByte[:]) % 10000 == uint64(5337) {
 				//bigger := ram.value-maximum
 				//fmt.Printf("======get an cut point, hashvale:%d,   value-max:%d,   value:%d,   max:%d\n",2*binary.BigEndian.Uint64(hashByte[:]), bigger,ram.value, maximum)
 				//if binary.BigEndian.Uint64(hashByte[:]) % toMaxUint64 < bigger {
-					fmt.Printf("get an cut point, hashvale:%d,   value-max:%d,   value:%d,   max:%d\n",2*binary.BigEndian.Uint64(hashByte[:]), 0,ram.value, maximum)
+					fmt.Printf("get an cut point, hashvale:%d,   value:%d,   max:%d\n",2*binary.BigEndian.Uint64(hashByte[:]),ram.value, maximum)
 					break
 				}
 			}
