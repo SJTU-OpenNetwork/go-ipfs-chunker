@@ -3,7 +3,6 @@ package chunk
 import (
 	"crypto/md5"
 	"encoding/binary"
-	"fmt"
 	"io"
 )
 
@@ -82,7 +81,7 @@ func (ram *Hram) NextBytes() ([]byte, error) {
 				//bigger := ram.value-maximum
 				//fmt.Printf("======get an cut point, hashvale:%d,   value-max:%d,   value:%d,   max:%d\n",2*binary.BigEndian.Uint64(hashByte[:]), bigger,ram.value, maximum)
 				//if binary.BigEndian.Uint64(hashByte[:]) % toMaxUint64 < bigger {
-					fmt.Printf("get an cut point, hashvale:%d,   value:%d,   max:%d\n",2*binary.BigEndian.Uint64(hashByte[:]),ram.value, maximum)
+				//	fmt.Printf("get an cut point, hashvale:%d,   value:%d,   max:%d\n",2*binary.BigEndian.Uint64(hashByte[:]),ram.value, maximum)
 					break
 				}
 			}
