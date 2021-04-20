@@ -66,7 +66,7 @@ func FromString(r io.Reader, chunker string) (Splitter, error) {
 		return NewBuzhash(r), nil
 
 	default:
-		return nil, fmt.Errorf("unrecognized chunker option: %s", chunker)
+		return nil, fmt.Errorf("unrecognized chunker================= option: %s", chunker)
 	}
 }
 
@@ -117,6 +117,7 @@ func parseHramString(r io.Reader, chunker string) (Splitter, error) {
 	if err != nil {
 		return nil, err
 	}
+	//return NewHram(r,262144), nil
 	return NewHram(r,minSize,maxSize,uint32(byteNum)), nil
 }
 

@@ -23,8 +23,10 @@ type Hram struct {
 	observe uint64
 	observeArr []byte
 
-	chunNum uint64
+	chunkarr []byte
 }
+
+const MaxUint64 = ^uint64(0)
 
 func NewHram(r io.Reader, minSize int, maxSize int, byteNum uint32) *Hram {
 	return &Hram{
@@ -37,18 +39,18 @@ func NewHram(r io.Reader, minSize int, maxSize int, byteNum uint32) *Hram {
 		bufStart: 0,
 		bufEnd:   0,
 		value: 0,
+		chunkarr: make([]byte,maxSize),
 		observeArr: make([]byte,8),
-		chunNum: 0,
 	}
 }
 
 func (ram *Hram) NextBytes() ([]byte, error) {
 	var maximum uint64 = 0
-	maxsizeMinusOne := ram.maxSize-1
+	maxsizeMinueOne := ram.maxSize-1
 	i:=ram.curIndex
 	curByteIndex:=i-ram.bufStart
 	chunkSize:=0
-	chunkarr := make([]byte,ram.maxSize)
+	//toMaxUint64:=MaxUint64-maximum
 	for {
 		if i>=ram.bufEnd {
 			n,_ := io.ReadFull(ram.reader, ram.buf)
@@ -57,7 +59,6 @@ func (ram *Hram) NextBytes() ([]byte, error) {
 					ram.curIndex = ram.bufEnd
 					return nil,io.EOF
 				}
-				i--
 				break
 			}
 			if i!=0 {
@@ -66,33 +67,36 @@ func (ram *Hram) NextBytes() ([]byte, error) {
 			ram.bufEnd += n
 			curByteIndex=0
 		}
-		chunkarr[chunkSize]=ram.buf[curByteIndex]
-		if chunkSize == maxsizeMinusOne { //reach the max size
+		ram.chunkarr[chunkSize]=ram.buf[curByteIndex]
+		ram.value = (ram.value<<8) | uint64(ram.chunkarr[chunkSize])
+		if chunkSize == maxsizeMinueOne { //reach the max size
 			break
 		}
-		ram.value = (ram.value<<8) | uint64(chunkarr[chunkSize])
 		if ram.value >= (maximum/100*95) {
 			if chunkSize > ram.minSize {
-				ram.observe = (ram.observe<<8) | uint64(chunkarr[chunkSize])
+				ram.observe = (ram.observe<<8) | uint64(ram.chunkarr[chunkSize])
 				binary.BigEndian.PutUint64(ram.observeArr,ram.observe)
 				var hashByte = md5.Sum(ram.observeArr)
 				if binary.BigEndian.Uint64(hashByte[:]) % 10000 == uint64(5337) {
+				//bigger := ram.value-maximum
+				//fmt.Printf("======get an cut point, hashvale:%d,   value-max:%d,   value:%d,   max:%d\n",2*binary.BigEndian.Uint64(hashByte[:]), bigger,ram.value, maximum)
+				//if binary.BigEndian.Uint64(hashByte[:]) % toMaxUint64 < bigger {
+				//	fmt.Printf("get an cut point, hashvale:%d,   value:%d,   max:%d\n",2*binary.BigEndian.Uint64(hashByte[:]),ram.value, maximum)
 					break
 				}
 			}
 			if ram.value > maximum {
 				maximum = ram.value
 			}
+			//toMaxUint64 = MaxUint64-maximum
 		}
 		i++
 		chunkSize++
 		curByteIndex++
 	}
-	ram.chunNum++
 	var x =ram.curIndex
 	ram.curIndex = i+1
-
-	return chunkarr[:(i+1-x)], nil
+	return ram.chunkarr[:(i+1-x)], nil
 }
 
 func (ram *Hram) Reader() io.Reader {
