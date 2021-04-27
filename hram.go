@@ -30,8 +30,8 @@ type Hram struct {
 func NewHram(r io.Reader, minSize int ,avrgSize int, maxSize int, byteNum uint32) *Hram {
 	return &Hram{
 		reader:   r,
-		minSize:  minSize, //default 16384=16k
-		maxSize:  maxSize, //default 1048576=1024k=64*min
+		minSize:  minSize, //default 1024=1k
+		maxSize:  maxSize, //default 16384=16k
 		modD: uint64(avrgSize/20),
 		byteNum:  byteNum, //default 8
 		curIndex: 0,
