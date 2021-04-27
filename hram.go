@@ -1,15 +1,16 @@
 package chunk
 
 import (
-	"crypto/md5"
 	"encoding/binary"
 	"io"
+	"lukechampine.com/blake3"
 )
 
 type Hram struct {
 	reader io.Reader
 	minSize int // also the size of fixed window
 	maxSize int
+	modD uint64
 	byteNum uint32
 
 	curIndex int // start point of current block
@@ -26,11 +27,12 @@ type Hram struct {
 	chunNum uint64
 }
 
-func NewHram(r io.Reader, minSize int, maxSize int, byteNum uint32) *Hram {
+func NewHram(r io.Reader, minSize int ,avrgSize int, maxSize int, byteNum uint32) *Hram {
 	return &Hram{
 		reader:   r,
 		minSize:  minSize, //default 16384=16k
 		maxSize:  maxSize, //default 1048576=1024k=64*min
+		modD: uint64(avrgSize/20),
 		byteNum:  byteNum, //default 8
 		curIndex: 0,
 		buf:      make([]byte, minSize*40),
@@ -75,8 +77,9 @@ func (ram *Hram) NextBytes() ([]byte, error) {
 			if chunkSize > ram.minSize {
 				ram.observe = (ram.observe<<8) | uint64(chunkarr[chunkSize])
 				binary.BigEndian.PutUint64(ram.observeArr,ram.observe)
-				var hashByte = md5.Sum(ram.observeArr)
-				if binary.BigEndian.Uint64(hashByte[:]) % 10000 == uint64(5337) {
+				//var hashByte = md5.Sum(ram.observeArr)
+				var hashByte = blake3.Sum256(ram.observeArr)
+				if binary.BigEndian.Uint64(hashByte[:]) % ram.modD == uint64(5337) {
 					break
 				}
 			}

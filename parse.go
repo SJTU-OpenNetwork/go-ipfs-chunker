@@ -104,21 +104,25 @@ func parseHonRabin(r io.Reader, chunker string)(Splitter, error) {
 
 func parseHramString(r io.Reader, chunker string) (Splitter, error) {
 	parts := strings.Split(chunker, "-")
-	fmt.Println("hram: ",parts[1],parts[2],parts[3])
+	fmt.Println("hram: ",parts[1],parts[2],parts[3],parts[4])
 	minSize,err:=strconv.Atoi(parts[1])
 	if err != nil {
 		return nil, err
 	}
-	maxSize,err:=strconv.Atoi(parts[2])
+	avrgSize,err:=strconv.Atoi(parts[2])
 	if err != nil {
 		return nil, err
 	}
-	byteNum,err:=strconv.Atoi(parts[3])
+	maxSize,err:=strconv.Atoi(parts[3])
+	if err != nil {
+		return nil, err
+	}
+	byteNum,err:=strconv.Atoi(parts[4])
 	if err != nil {
 		return nil, err
 	}
 	//return NewHram(r,262144), nil
-	return NewHram(r,minSize,maxSize,uint32(byteNum)), nil
+	return NewHram(r,minSize,avrgSize,maxSize,uint32(byteNum)), nil
 }
 
 func parseRamString(r io.Reader, chunker string) (Splitter, error) {

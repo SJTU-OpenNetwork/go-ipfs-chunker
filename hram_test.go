@@ -12,12 +12,12 @@ import (
 )
 
 func TestHramChunking(t *testing.T) {
-	data := make([]byte, 1024*1024*16)
+	data := make([]byte, 1024*1024*32)
 	//data := make([]byte, 1024)
 	//data := make([]byte, 303769)
 	util.NewTimeSeededRand().Read(data)
 
-	r := NewHram(bytes.NewReader(data), 32768,1048576,4)
+	r := NewHram(bytes.NewReader(data), 1024,16384, 32768,4)
 
 	chunks := make([][]byte, 10)
 
@@ -95,7 +95,7 @@ func testReuse1(t *testing.T, cr newSplitter) {
 
 func TestHramChunkReuse(t *testing.T) {
 	newRabin := func(r io.Reader) Splitter {
-		return NewHram(r, 32768,1048576,4)
+		return NewHram(r, 1024,16384, 32768,4)
 	}
 	testReuse1(t, newRabin)
 }
@@ -104,6 +104,6 @@ var Res1 uint64
 
 func BenchmarkHram(b *testing.B) {
 	benchmarkChunker(b, func(r io.Reader) Splitter {
-		return NewHram(r, 32768,1048576,4)
+		return NewHram(r, 1024,16384, 32768,4)
 	})
 }
