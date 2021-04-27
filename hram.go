@@ -32,7 +32,7 @@ func NewHram(r io.Reader, minSize int ,avrgSize int, maxSize int, byteNum uint32
 		reader:   r,
 		minSize:  minSize, //default 1024=1k
 		maxSize:  maxSize, //default 16384=16k
-		modD: uint64(avrgSize/20),
+		modD: uint64(avrgSize/20), //default 2048=2k
 		byteNum:  byteNum, //default 8
 		curIndex: 0,
 		buf:      make([]byte, minSize*40),
