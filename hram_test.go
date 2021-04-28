@@ -6,21 +6,19 @@ import (
 	"fmt"
 	"io"
 	"testing"
+	"time"
 
 	blocks "github.com/ipfs/go-block-format"
 	util "github.com/ipfs/go-ipfs-util"
 )
 
 func TestHramChunking(t *testing.T) {
-	data := make([]byte, 1024*1024*32)
-	//data := make([]byte, 1024)
-	//data := make([]byte, 303769)
+	data := make([]byte, 1024*1024*64)
 	util.NewTimeSeededRand().Read(data)
 
-	r := NewHram(bytes.NewReader(data), 1024,16384, 32768,4)
-
 	chunks := make([][]byte, 10)
-
+	startTime := time.Now()
+	r := NewHram(bytes.NewReader(data), 1024,16384, 32768,4)
 	for {
 		chunk, err := r.NextBytes()
 		if err != nil {
@@ -31,6 +29,7 @@ func TestHramChunking(t *testing.T) {
 		}
 		chunks = append(chunks, chunk)
 	}
+	fmt.Println("======time: ",time.Since(startTime),"    ,num:",len(chunks))
 	unchunked := bytes.Join(chunks, nil)
 
 	fmt.Printf("\n---a: ")
@@ -38,13 +37,6 @@ func TestHramChunking(t *testing.T) {
 
 	fmt.Printf("---b: ")
 	fmt.Println(unchunked[0:10])
-
-	for i:=0; i<len(unchunked); i++ {
-		if unchunked[i] != data[i] {
-			fmt.Printf("not equal: %d\n",i)
-			break
-		}
-	}
 
 	if !bytes.Equal(unchunked[:], data) {
 		fmt.Printf("%d %d\n", len(unchunked), len(data))

@@ -104,7 +104,7 @@ func parseHonRabin(r io.Reader, chunker string)(Splitter, error) {
 
 func parseHramString(r io.Reader, chunker string) (Splitter, error) {
 	parts := strings.Split(chunker, "-")
-	fmt.Println("hram: ",parts[1],parts[2],parts[3],parts[4])
+	fmt.Println("hram===================: ",parts[1],parts[2],parts[3],parts[4])
 	minSize,err:=strconv.Atoi(parts[1])
 	if err != nil {
 		return nil, err

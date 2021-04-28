@@ -2,9 +2,17 @@ package chunk
 
 import (
 	"encoding/binary"
+	"github.com/cespare/xxhash"
 	"io"
-	"lukechampine.com/blake3"
 )
+
+const (
+	AVARAGE_SIZE = 3072
+	MIN_SIZE = 1024
+	MAX_SIZE= 6144
+)
+
+
 
 type Hram struct {
 	reader io.Reader
@@ -30,10 +38,10 @@ type Hram struct {
 func NewHram(r io.Reader, minSize int ,avrgSize int, maxSize int, byteNum uint32) *Hram {
 	return &Hram{
 		reader:   r,
-		minSize:  minSize, //default 16384=16k
-		maxSize:  maxSize, //default 1048576=1024k=64*min
-		modD: uint64(avrgSize/20),
-		byteNum:  byteNum, //default 8
+		minSize:  MIN_SIZE,
+		maxSize:  MAX_SIZE,
+		modD: AVARAGE_SIZE/20,
+		byteNum:  byteNum,
 		curIndex: 0,
 		buf:      make([]byte, minSize*40),
 		bufStart: 0,
@@ -77,9 +85,8 @@ func (ram *Hram) NextBytes() ([]byte, error) {
 			if chunkSize > ram.minSize {
 				ram.observe = (ram.observe<<8) | uint64(chunkarr[chunkSize])
 				binary.BigEndian.PutUint64(ram.observeArr,ram.observe)
-				//var hashByte = md5.Sum(ram.observeArr)
-				var hashByte = blake3.Sum256(ram.observeArr)
-				if binary.BigEndian.Uint64(hashByte[:]) % ram.modD == uint64(5337) {
+				var hashVal = xxhash.Sum64(ram.observeArr)
+				if hashVal % ram.modD == uint64(1) {
 					break
 				}
 			}
