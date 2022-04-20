@@ -38,9 +38,9 @@ type Hram struct {
 func NewHram(r io.Reader, minSize int ,avrgSize int, maxSize int, byteNum uint32) *Hram {
 	return &Hram{
 		reader:   r,
-		minSize:  MIN_SIZE,
-		maxSize:  MAX_SIZE,
-		modD: AVARAGE_SIZE/20,
+		minSize:  minSize,
+		maxSize:  maxSize,
+		modD: uint64(avrgSize)/20,
 		byteNum:  byteNum,
 		curIndex: 0,
 		buf:      make([]byte, minSize*40),
